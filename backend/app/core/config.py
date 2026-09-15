@@ -1,0 +1,17 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    app_name: str = "To-Do API"
+    environment: str = "development"
+    allowed_origins: str = "http://localhost:8081,http://localhost:19006"
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    @property
+    def cors_origins(self) -> list[str]:
+        # Virgulle ayrilmis string'i CORS middleware'in bekledigi listeye cevirir
+        return [origin.strip() for origin in self.allowed_origins.split(",")]
+
+
+settings = Settings()
