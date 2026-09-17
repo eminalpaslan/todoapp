@@ -36,6 +36,13 @@ Stack: React Native (Expo) + FastAPI + PostgreSQL
 - Rate limiting
 - Input validation / SQL injection koruması (ORM zaten sağlıyor ama bilinçli olacağız)
 
+### 6.5. Hesap yönetimi (ek kapsam)
+- Email doğrulama (Mailpit ile, login'i engellemez)
+- Şifremi unuttum / şifre sıfırlama
+- Kullanıcı profili güncelleme (email, şifre)
+- Logout (token_version ile gerçek iptal)
+- Health-check'in veritabanı bağlantısını da kontrol etmesi
+
 ### 7. Mobil uygulama iskeleti
 - Expo projesi kurulumu
 - Navigasyon yapısı (React Navigation)

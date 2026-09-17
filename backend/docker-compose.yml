@@ -12,5 +12,13 @@ services:
     volumes:
       - todo_db_data:/var/lib/postgresql/data
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: todo_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP - uygulama buraya mail "gonderir"
+      - "8025:8025" # Web arayuzu - gonderilen maillere tarayicidan bakmak icin
+
 volumes:
   todo_db_data:

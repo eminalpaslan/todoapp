@@ -4,12 +4,14 @@
 > özetiyken, bu dosya projenin **güncel** mimarisini anlatır. Mimari
 > değiştikçe (yeni klasör, yeni katman, yeni model) bu dosya güncellenir.
 >
-> Son güncelleme: Aşama 6 (Güvenlik katmanı) sonrası.
+> Son güncelleme: Aşama 6.5 (Hesap yönetimi) sonrası.
 
 ## Büyük resim
 
 ```
 mobile (React Native / Expo)  ⇄  HTTP/JSON  ⇄  backend (FastAPI)  ⇄  PostgreSQL (Docker)
+                                                        ↓
+                                                  Mailpit (Docker) — doğrulama/sıfırlama mailleri
 ```
 
 - **mobile/**: Kullanıcının gördüğü uygulama. Şu an sadece klasör iskeleti var,
@@ -69,7 +71,7 @@ verisini zaten hiç sonuç olarak döndürmüyor (kod içinde ayrıca bir
 | `.env` | **Gerçek** gizli değerler (DB şifresi, JWT secret). Git'e girmez. |
 | `.env.example` | `.env`'in şablonu, gerçek değer yok. Git'e girer, başka biri projeyi klonlayınca neye ihtiyaç olduğunu buradan anlar. |
 | `.gitignore` | `venv/`, `__pycache__/`, `.env`, `.pytest_cache/` gibi backend'e özel ignore kuralları |
-| `docker-compose.yml` | PostgreSQL container'ının tanımı. Şifre/kullanıcı adını `.env`'den okur (`${POSTGRES_USER}` gibi), kod içine yazılı değil |
+| `docker-compose.yml` | PostgreSQL ve Mailpit container'larının tanımı. Postgres şifresi/kullanıcı adı `.env`'den okunur (`${POSTGRES_USER}` gibi), kod içine yazılı değil. Mailpit gerçek email göndermez, `localhost:8025`'te web arayüzü sunar |
 | `requirements.txt` | Kurulu Python paketlerinin tam listesi (`pip freeze` çıktısı) — başka bir makinede `pip install -r requirements.txt` ile aynı ortam kurulur |
 | `pytest.ini` | Pytest ayarı: `app` paketinin testlerden import edilebilmesi için `pythonpath = .` |
 | `venv/` | Python sanal ortamı (gitignore'da, elle oluşturulur, repoya girmez) |
@@ -91,9 +93,10 @@ Hiçbir endpoint'e özel olmayan, her yerden kullanılan kod burada.
 |---|---|---|
 | `config.py` | `Settings` sınıfı — `.env`'den okunan tüm ayarlar (app adı, CORS origin'leri, `DATABASE_URL`, JWT ayarları). Uygulama genelinde `from app.core.config import settings` ile import edilir. | Her yer |
 | `database.py` | Async SQLAlchemy `engine`, `AsyncSessionLocal` (oturum üretici), `Base` (tüm modellerin türediği sınıf), `get_db()` (endpoint'lere DB oturumu enjekte eden FastAPI dependency'si) | `models/*`, `routers/*`, `alembic/env.py` |
-| `security.py` | `hash_password` / `verify_password` (bcrypt), `create_access_token` / `decode_access_token` (JWT) | `routers/auth.py`, `core/deps.py` |
-| `deps.py` | `get_current_user` — gelen `Authorization: Bearer <token>` header'ını doğrulayıp o kullanıcıyı DB'den çeken dependency. Korumalı her endpoint bunu kullanır. | Korumalı endpoint'ler (örn. `auth.py`'deki `/me`, `todo.py`'nin tamamı) |
+| `security.py` | `hash_password` / `verify_password` (bcrypt); `create_access_token`/`decode_access_token` (login token'ı — `sub`, `ver`=token_version, `type: "access"` taşır); `create_purpose_token`/`decode_purpose_token` (email doğrulama ve şifre sıfırlama için genel amaçlı, `type` alanıyla birbirine karışmaz) | `routers/auth.py`, `core/deps.py` |
+| `deps.py` | `get_current_user` — `Authorization: Bearer <token>` header'ını doğrular, `type` alanının `"access"` olduğunu VE token'daki `ver`'in kullanıcının DB'deki güncel `token_version`'ıyla eşleştiğini kontrol eder (eşleşmezse logout/şifre değişimi sonrası eski token demektir) | Korumalı endpoint'ler (`auth.py`'deki `/me`, `/logout`; `todo.py`'nin tamamı) |
 | `limiter.py` | Paylaşılan `slowapi` `Limiter` nesnesi (IP bazlı, bellek-içi). Genel varsayılan: `60/minute`. | `main.py` (middleware olarak), `routers/auth.py` (`@limiter.limit` ile ekstra sıkı limit) |
+| `email.py` | `send_email(to, subject, body)` — Mailpit'e `smtplib` (stdlib) ile gönderir, bloklamaması için `run_in_threadpool` içinde çalışır. Gönderim hatası (`OSError`) çağıran tarafta yutulur, işlemi (register/reset) başarısız kılmaz | `routers/auth.py` |
 
 #### `app/models/` — veritabanı tabloları (SQLAlchemy)
 
@@ -101,7 +104,7 @@ Python sınıfı = veritabanı tablosu. `core/database.py`'deki `Base`'den türe
 
 | Dosya | İçerik |
 |---|---|
-| `user.py` | `User` tablosu: `id`, `email` (unique), `hashed_password`, `created_at` |
+| `user.py` | `User` tablosu: `id`, `email` (unique), `hashed_password`, `is_verified`, `token_version` (logout/şifre değişiminde artar), `created_at` |
 | `todo.py` | `Todo` tablosu: `id`, `title`, `description` (opsiyonel), `is_done`, `owner_id` (`users.id`'ye foreign key, index'li), `created_at` |
 
 > Yeni bir tablo eklerken: burada yeni bir dosya/sınıf açılır, ardından
@@ -115,7 +118,7 @@ Modellerle karıştırılmamalı: model = veritabanı satırı, şema = API söz
 
 | Dosya | İçerik |
 |---|---|
-| `user.py` | `UserCreate` (register isteği: email, password), `UserLogin` (login isteği), `UserResponse` (dışarı dönen kullanıcı bilgisi — şifre yok), `Token` (login cevabı: access_token, token_type) |
+| `user.py` | `UserCreate`, `UserLogin`, `UserResponse` (şifre yok, `is_verified` var), `Token`, `UserUpdate` (profil güncelleme — şifre değişimi mevcut şifre ister), `ForgotPasswordRequest`, `ResetPasswordRequest`, `VerifyEmailRequest`, `MessageResponse` (generic `{"message": "..."}` cevabı) |
 | `todo.py` | `TodoCreate`, `TodoUpdate` (tüm alanlar opsiyonel — kısmi güncelleme için), `TodoResponse` (`owner_id` yok — cevap zaten hep giriş yapmış kullanıcının verisi) |
 
 #### `app/routers/` — endpoint tanımları
@@ -125,8 +128,8 @@ Her router, ilgili bir konudaki endpoint'leri gruplar; `main.py`'de
 
 | Dosya | Endpoint'ler |
 |---|---|
-| `health.py` | `GET /health` — sunucu ayakta mı kontrolü |
-| `auth.py` | `POST /auth/register`, `POST /auth/login`, `GET /auth/me` |
+| `health.py` | `GET /health` — sunucu VE veritabanı bağlantısı ayakta mı (`SELECT 1` çalıştırır, DB erişilemezse 503) |
+| `auth.py` | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `PATCH /auth/me`, `POST /auth/logout`, `POST /auth/verify-email`, `POST /auth/resend-verification`, `POST /auth/forgot-password`, `POST /auth/reset-password` |
 | `todo.py` | `POST /todos`, `GET /todos`, `GET /todos/{id}`, `PATCH /todos/{id}`, `DELETE /todos/{id}` — hepsi `get_current_user` ile korunuyor, sorgular her zaman `owner_id == current_user.id` filtresiyle çalışıyor |
 
 ### `backend/alembic/` — veritabanı migration sistemi
@@ -145,7 +148,7 @@ Bkz. `docs/03_veritabani.md` için detaylı anlatım. Kısaca:
 | Dosya | Neyi test ediyor |
 |---|---|
 | `test_health.py` | `/health` 200 dönüyor mu |
-| `test_auth.py` | register (başarılı + 409 çakışma), login (başarılı + 401 yanlış şifre), `/me` (token'lı + tokensız) |
+| `test_auth.py` | register/login/`/me`, rate limit, SQL injection, email doğrulama (geçerli/geçersiz token, purpose token'ın access olarak kullanılamaması), logout (eski token'ın geçersizleşmesi), profil güncelleme (yanlış mevcut şifre, şifre değişince eski token'ın düşmesi, email değişince `is_verified`'ın sıfırlanması), şifremi unuttum (var/yok email için aynı cevap), şifre sıfırlama |
 | `test_todo.py` | create/list, kısmi güncelleme, silme, **kullanıcı izolasyonu** (başkasının todo'suna erişememe → 404), auth zorunluluğu, boş başlık reddi, SQL injection payload'ının düz metin olarak saklanması |
 | `conftest.py` | `reset_rate_limiter` (autouse) — her testten önce rate limit sayaçlarını sıfırlar, testler `TestClient`'ın paylaştığı sahte IP yüzünden birbirini etkilemesin diye |
 

@@ -19,15 +19,22 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    user_id = decode_access_token(credentials.credentials)
-    if user_id is None:
+    payload = decode_access_token(credentials.credentials)
+    if payload is None:
         raise credentials_error
 
     try:
-        user = await db.get(User, int(user_id))
-    except ValueError:
+        user_id = int(payload["sub"])
+    except (KeyError, ValueError):
         raise credentials_error
+
+    user = await db.get(User, user_id)
     if user is None:
+        raise credentials_error
+
+    # token_version uyusmuyorsa (logout / sifre degisimi sonrasi) token
+    # gecerliligini yitirmis sayilir, suresi dolmasa bile
+    if user.token_version != payload.get("ver"):
         raise credentials_error
 
     return user
