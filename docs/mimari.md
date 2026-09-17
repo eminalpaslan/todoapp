@@ -4,7 +4,7 @@
 > özetiyken, bu dosya projenin **güncel** mimarisini anlatır. Mimari
 > değiştikçe (yeni klasör, yeni katman, yeni model) bu dosya güncellenir.
 >
-> Son güncelleme: Aşama 4 (Auth) sonrası.
+> Son güncelleme: Aşama 5 (To-Do CRUD) sonrası.
 
 ## Büyük resim
 
@@ -42,6 +42,13 @@ routers/auth.py → core/deps.py (get_current_user) → gelen Authorization
 header'ındaki token'ı core/security.py ile çözer, geçerliyse DB'den o
 kullanıcıyı çeker ve endpoint fonksiyonuna parametre olarak verir.
 ```
+
+Veri izolasyonu gereken bir endpoint'te (örn. `GET /todos/{id}`) bu ikisi
+birleşiyor: önce `get_current_user` ile "sen kimsin" belirleniyor, sonra
+`routers/todo.py`'deki sorgu `WHERE id = ? AND owner_id = <current_user.id>`
+şeklinde çalışıyor — yani veritabanı sorgusunun kendisi, başkasının
+verisini zaten hiç sonuç olarak döndürmüyor (kod içinde ayrıca bir
+"yasaklama" if'i yok, sorgu seviyesinde engelleniyor).
 
 ## Klasör ve dosyalar
 
@@ -94,6 +101,7 @@ Python sınıfı = veritabanı tablosu. `core/database.py`'deki `Base`'den türe
 | Dosya | İçerik |
 |---|---|
 | `user.py` | `User` tablosu: `id`, `email` (unique), `hashed_password`, `created_at` |
+| `todo.py` | `Todo` tablosu: `id`, `title`, `description` (opsiyonel), `is_done`, `owner_id` (`users.id`'ye foreign key, index'li), `created_at` |
 
 > Yeni bir tablo eklerken: burada yeni bir dosya/sınıf açılır, ardından
 > `alembic revision --autogenerate` ile migration üretilip `alembic upgrade
@@ -107,6 +115,7 @@ Modellerle karıştırılmamalı: model = veritabanı satırı, şema = API söz
 | Dosya | İçerik |
 |---|---|
 | `user.py` | `UserCreate` (register isteği: email, password), `UserLogin` (login isteği), `UserResponse` (dışarı dönen kullanıcı bilgisi — şifre yok), `Token` (login cevabı: access_token, token_type) |
+| `todo.py` | `TodoCreate`, `TodoUpdate` (tüm alanlar opsiyonel — kısmi güncelleme için), `TodoResponse` (`owner_id` yok — cevap zaten hep giriş yapmış kullanıcının verisi) |
 
 #### `app/routers/` — endpoint tanımları
 
@@ -117,6 +126,7 @@ Her router, ilgili bir konudaki endpoint'leri gruplar; `main.py`'de
 |---|---|
 | `health.py` | `GET /health` — sunucu ayakta mı kontrolü |
 | `auth.py` | `POST /auth/register`, `POST /auth/login`, `GET /auth/me` |
+| `todo.py` | `POST /todos`, `GET /todos`, `GET /todos/{id}`, `PATCH /todos/{id}`, `DELETE /todos/{id}` — hepsi `get_current_user` ile korunuyor, sorgular her zaman `owner_id == current_user.id` filtresiyle çalışıyor |
 
 ### `backend/alembic/` — veritabanı migration sistemi
 
@@ -135,6 +145,7 @@ Bkz. `docs/03_veritabani.md` için detaylı anlatım. Kısaca:
 |---|---|
 | `test_health.py` | `/health` 200 dönüyor mu |
 | `test_auth.py` | register (başarılı + 409 çakışma), login (başarılı + 401 yanlış şifre), `/me` (token'lı + tokensız) |
+| `test_todo.py` | create/list, kısmi güncelleme, silme, **kullanıcı izolasyonu** (başkasının todo'suna erişememe → 404), auth zorunluluğu |
 
 > Not: Testler ayrı bir test veritabanı değil, gerçek geliştirme
 > veritabanına karşı çalışıyor (bkz. `docs/04_auth.md` "Bilinen sınırlama").
@@ -164,7 +175,4 @@ API sözleşmesi (şema) bilinçli olarak güncellenmeden dışarıya sızmaz.
 
 ## Aşama ilerledikçe burada değişecekler (öngörü, henüz yok)
 
-- Aşama 5: `app/models/todo.py`, `app/schemas/todo.py`,
-  `app/routers/todo.py` eklenecek; `get_current_user` üzerinden her
-  kullanıcı sadece kendi todo'larını görebilecek.
 - Aşama 7-9: `mobile/` klasörleri gerçek dosyalarla dolacak.
