@@ -85,11 +85,21 @@ Güvenlik best-practice: şifre değiştiğinde (kendi isteğinle veya "şifremi
 unuttum" ile) o ana kadar var olan tüm token'lar (çalınmış olabilecekler
 dahil) geçersiz kılınmalı.
 
-## Bilinen etki: testler yavaşladı
-Test paketi artık gerçekten Mailpit'e mail gönderiyor (her `register`
-çağrısında). 20 civarı testte bu ~35 saniyeye çıkardı (öncesinde ~10
-saniyeydi). Kabul edilebilir bulundu; gerçek email gönderimini es geçmek
-(mock'lamak) bu aşamada gereksiz karmaşıklık olurdu.
+## Test hızı: email gönderimi testlerde mock'landı
+İlk halde test paketi gerçekten Mailpit'e mail gönderiyordu (her
+`register` çağrısında), bu da 27 testi ~35 saniyeye çıkarmıştı (öncesinde
+~10 saniyeydi). `tests/conftest.py`'ye eklenen `disable_email_sending`
+(autouse) fixture'ı, `monkeypatch` ile `app.routers.auth.send_email`'i
+hiçbir şey yapmayan bir fonksiyonla değiştiriyor — production kodu hiç
+değişmedi, sadece test ortamında gerçek SMTP bağlantısı kurulmuyor. Bu,
+süreyi ~20 saniyeye indirdi ve testleri Mailpit'in ayakta olmasından
+bağımsız hale getirdi (testler artık container kapalıyken de çalışır).
+
+Kalan ~20 saniye kasıtlı: bcrypt hash'leme (güvenlik için yavaş olması
+gerekiyor) ve her sorguda taze bağlantı açan `NullPool` (bkz.
+`docs/04_auth.md`) katkı sağlıyor. Bunlara dokunmamaya karar verildi —
+production davranışını testte de aynen görmek, ekstra hız kazancından
+daha değerli bulundu.
 
 ## Nasıl denenir
 ```
