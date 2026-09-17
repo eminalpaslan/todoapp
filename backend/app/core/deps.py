@@ -1,6 +1,5 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -20,12 +19,14 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    email = decode_access_token(credentials.credentials)
-    if email is None:
+    user_id = decode_access_token(credentials.credentials)
+    if user_id is None:
         raise credentials_error
 
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
+    try:
+        user = await db.get(User, int(user_id))
+    except ValueError:
+        raise credentials_error
     if user is None:
         raise credentials_error
 

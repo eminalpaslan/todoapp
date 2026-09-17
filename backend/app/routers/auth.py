@@ -38,7 +38,7 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
             detail="E-posta veya sifre hatali",
         )
 
-    return Token(access_token=create_access_token(subject=user.email))
+    return Token(access_token=create_access_token(subject=str(user.id)))
 
 
 @router.get("/me", response_model=UserResponse)

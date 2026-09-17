@@ -72,6 +72,21 @@ etkilemesin. Test verileri veritabanında birikir — ileride ayrı bir test
 veritabanı/temizlik mekanizması eklenebilir, şimdilik öğrenme aşaması için
 yeterli görüldü.
 
+## Sonradan bulunan sorun ve düzeltmesi: JWT `sub` alanı email değil id olmalı
+İlk halde `create_access_token(subject=user.email)` kullanılmıştı ve
+`get_current_user` token'ı çözüp email ile kullanıcı arıyordu. Bu yanlış:
+- Email değişebilen bir alan; ileride "email güncelleme" eklenirse elde
+  var olan token'lar geçersiz kullanıcıya işaret edebilirdi.
+- Daha ciddisi: bir hesap silinip aynı email ile yeni biri kayıt olursa,
+  silinen hesabın süresi dolmamış eski token'ı yeni kullanıcıya erişim
+  verebilirdi (güvenlik açığı).
+
+Düzeltme: `auth.py`'de `create_access_token(subject=str(user.id))`,
+`deps.py`'de `db.get(User, int(user_id))` kullanılacak şekilde değiştirildi.
+`id` sabit (immutable) olduğu için bu sorunları ortadan kaldırıyor. JWT'nin
+`sub` alanı için genel kural zaten budur: değişebilen bir alan değil,
+sabit/benzersiz bir kimlik kullanılmalı.
+
 ## Nasıl denenir
 ```
 cd backend
