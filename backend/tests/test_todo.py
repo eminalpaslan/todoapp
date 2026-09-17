@@ -65,3 +65,25 @@ def test_todos_require_authentication():
     response = client.get("/todos")
 
     assert response.status_code == 401
+
+
+def test_empty_title_is_rejected():
+    headers = _auth_headers()
+
+    response = client.post("/todos", json={"title": ""}, headers=headers)
+
+    assert response.status_code == 422
+
+
+def test_title_with_sql_injection_payload_is_stored_as_plain_text():
+    headers = _auth_headers()
+    payload = "Robert'); DROP TABLE todos;--"
+
+    create_response = client.post("/todos", json={"title": payload}, headers=headers)
+    assert create_response.status_code == 201
+    assert create_response.json()["title"] == payload
+
+    # Tablo hala ayakta mi? ORM parametreli sorgu kullandigi icin
+    # gonderilen metin hicbir zaman SQL komutu olarak calismiyor.
+    list_response = client.get("/todos", headers=headers)
+    assert list_response.status_code == 200

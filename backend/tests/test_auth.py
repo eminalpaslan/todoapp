@@ -60,3 +60,37 @@ def test_protected_route_without_token_returns_401():
     response = client.get("/auth/me")
 
     assert response.status_code == 401
+
+
+def test_register_with_short_password_returns_422():
+    response = client.post(
+        "/auth/register", json={"email": _unique_email(), "password": "kisa"}
+    )
+
+    assert response.status_code == 422
+
+
+def test_login_rate_limit_blocks_after_too_many_attempts():
+    email = _unique_email()
+    client.post("/auth/register", json={"email": email, "password": "sifre123"})
+
+    for _ in range(5):
+        response = client.post(
+            "/auth/login", json={"email": email, "password": "sifre123"}
+        )
+        assert response.status_code == 200
+
+    response = client.post("/auth/login", json={"email": email, "password": "sifre123"})
+
+    assert response.status_code == 429
+
+
+def test_login_sql_injection_payload_is_rejected_safely():
+    response = client.post(
+        "/auth/login",
+        json={"email": "' OR '1'='1", "password": "' OR '1'='1"},
+    )
+
+    # EmailStr formati zaten gecersiz oldugu icin veritabanina hic ulasmadan
+    # 422 doner - ilk savunma katmani burada devreye giriyor.
+    assert response.status_code == 422

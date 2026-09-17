@@ -4,7 +4,7 @@
 > özetiyken, bu dosya projenin **güncel** mimarisini anlatır. Mimari
 > değiştikçe (yeni klasör, yeni katman, yeni model) bu dosya güncellenir.
 >
-> Son güncelleme: Aşama 5 (To-Do CRUD) sonrası.
+> Son güncelleme: Aşama 6 (Güvenlik katmanı) sonrası.
 
 ## Büyük resim
 
@@ -81,7 +81,7 @@ belirlediği katman ayrımını izliyor:
 
 | Yol | Ne işe yarar |
 |---|---|
-| `main.py` | Uygulamanın giriş noktası. `FastAPI()` nesnesini oluşturur, CORS ayarını ekler, tüm router'ları (`health`, `auth`, ...) buraya bağlar |
+| `main.py` | Uygulamanın giriş noktası. `FastAPI()` nesnesini oluşturur, rate limiter'ı ve CORS'u (spesifik origin/method/header — `*` yok) middleware olarak ekler, tüm router'ları (`health`, `auth`, `todo`) buraya bağlar |
 
 #### `app/core/` — ortak altyapı
 
@@ -92,7 +92,8 @@ Hiçbir endpoint'e özel olmayan, her yerden kullanılan kod burada.
 | `config.py` | `Settings` sınıfı — `.env`'den okunan tüm ayarlar (app adı, CORS origin'leri, `DATABASE_URL`, JWT ayarları). Uygulama genelinde `from app.core.config import settings` ile import edilir. | Her yer |
 | `database.py` | Async SQLAlchemy `engine`, `AsyncSessionLocal` (oturum üretici), `Base` (tüm modellerin türediği sınıf), `get_db()` (endpoint'lere DB oturumu enjekte eden FastAPI dependency'si) | `models/*`, `routers/*`, `alembic/env.py` |
 | `security.py` | `hash_password` / `verify_password` (bcrypt), `create_access_token` / `decode_access_token` (JWT) | `routers/auth.py`, `core/deps.py` |
-| `deps.py` | `get_current_user` — gelen `Authorization: Bearer <token>` header'ını doğrulayıp o kullanıcıyı DB'den çeken dependency. Korumalı her endpoint bunu kullanır. | Korumalı endpoint'ler (örn. `auth.py`'deki `/me`, ileride `todo.py`) |
+| `deps.py` | `get_current_user` — gelen `Authorization: Bearer <token>` header'ını doğrulayıp o kullanıcıyı DB'den çeken dependency. Korumalı her endpoint bunu kullanır. | Korumalı endpoint'ler (örn. `auth.py`'deki `/me`, `todo.py`'nin tamamı) |
+| `limiter.py` | Paylaşılan `slowapi` `Limiter` nesnesi (IP bazlı, bellek-içi). Genel varsayılan: `60/minute`. | `main.py` (middleware olarak), `routers/auth.py` (`@limiter.limit` ile ekstra sıkı limit) |
 
 #### `app/models/` — veritabanı tabloları (SQLAlchemy)
 
@@ -145,7 +146,8 @@ Bkz. `docs/03_veritabani.md` için detaylı anlatım. Kısaca:
 |---|---|
 | `test_health.py` | `/health` 200 dönüyor mu |
 | `test_auth.py` | register (başarılı + 409 çakışma), login (başarılı + 401 yanlış şifre), `/me` (token'lı + tokensız) |
-| `test_todo.py` | create/list, kısmi güncelleme, silme, **kullanıcı izolasyonu** (başkasının todo'suna erişememe → 404), auth zorunluluğu |
+| `test_todo.py` | create/list, kısmi güncelleme, silme, **kullanıcı izolasyonu** (başkasının todo'suna erişememe → 404), auth zorunluluğu, boş başlık reddi, SQL injection payload'ının düz metin olarak saklanması |
+| `conftest.py` | `reset_rate_limiter` (autouse) — her testten önce rate limit sayaçlarını sıfırlar, testler `TestClient`'ın paylaştığı sahte IP yüzünden birbirini etkilemesin diye |
 
 > Not: Testler ayrı bir test veritabanı değil, gerçek geliştirme
 > veritabanına karşı çalışıyor (bkz. `docs/04_auth.md` "Bilinen sınırlama").
