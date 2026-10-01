@@ -4,7 +4,7 @@
 > özetiyken, bu dosya projenin **güncel** mimarisini anlatır. Mimari
 > değiştikçe (yeni klasör, yeni katman, yeni model) bu dosya güncellenir.
 >
-> Son güncelleme: Aşama 7 (Mobil uygulama iskeleti) sonrası.
+> Son güncelleme: Aşama 8 (Mobil API bağlantısı) sonrası.
 
 ## Büyük resim
 
@@ -14,9 +14,9 @@ mobile (React Native / Expo)  ⇄  HTTP/JSON  ⇄  backend (FastAPI)  ⇄  Postg
                                                   Mailpit (Docker) — doğrulama/sıfırlama mailleri
 ```
 
-- **mobile/**: Kullanıcının gördüğü uygulama. Proje iskeleti ve navigasyon
-  kuruldu, ekranların gerçek mantığı (API çağrısı, state) Aşama 8-9'da
-  doldurulacak.
+- **mobile/**: Kullanıcının gördüğü uygulama (Expo/React Native). Giriş/
+  kayıt gerçek backend'e bağlı, token cihazda şifreli saklanıyor. Todo
+  listesinin kendisi (CRUD ekranları) Aşama 9'da eklenecek.
 - **backend/**: Tüm iş mantığı, veri doğrulama, kimlik doğrulama ve
   veritabanı erişimi burada. Mobil uygulama sadece bu API'ye HTTP isteği atar.
 - **docs/**: Kod değil ama projenin "neden böyle" tarihçesi.
@@ -165,13 +165,20 @@ Bkz. `docs/03_veritabani.md` için detaylı anlatım. Kısaca:
 | `package.json` | Bağımlılıklar (`expo`, `react-native`, `@react-navigation/*`) |
 | `index.js` | Expo'nun native tarafa uygulamayı kaydettiği dosya (elle değiştirilmez) |
 | `assets/` | İkon/splash görselleri |
-| `navigation/AppNavigator.js` | `NavigationContainer` + `Stack.Navigator` — `Login`, `Register`, `TodoList` ekranları arasındaki geçiş |
-| `screens/` | Tam sayfa ekranlar: `LoginScreen.js`, `RegisterScreen.js`, `TodoListScreen.js` (şimdilik placeholder, gerçek mantık Aşama 8-9'da) |
+| `navigation/AppNavigator.js` | `NavigationContainer` + `Stack.Navigator` — `isLoggedIn`'e göre ya `Login`/`Register`, ya da `TodoList` ekranı gösterilir (iki ayrı stack, biri diğerine "geri" ile dönülemez) |
+| `screens/LoginScreen.js`, `RegisterScreen.js` | Gerçek form (email/şifre), backend hatalarını kullanıcıya gösterir |
+| `screens/TodoListScreen.js` | Korumalı `/auth/me` ile kullanıcı bilgisini gösterir, çıkış butonu var. Todo CRUD'u Aşama 9'da eklenecek |
+| `screens/__tests__/` | `LoginScreen.test.js` — boş form/başarılı giriş/hatalı giriş senaryoları (`jest-expo` + `@testing-library/react-native`) |
+| `services/storage.js` | Token'ı `expo-secure-store` ile cihazın şifreli deposunda saklar (`getToken`/`setToken`/`deleteToken`) |
+| `services/api.js` | Paylaşılan `axios` instance'ı — `baseURL` `.env`'den (`EXPO_PUBLIC_API_URL`), request interceptor token'ı otomatik `Authorization` header'ına ekler; `getErrorMessage()` backend hata formatını kullanıcıya gösterilecek metne çevirir |
+| `services/auth.js` | `register`, `login`, `getCurrentUser`, `logout` — backend `/auth/*`'a ince bir katman |
+| `services/AuthContext.js` | React Context — `isLoggedIn`/`isLoading`/`signIn`/`signOut`; `AppNavigator` hangi stack'i göstereceğine bununla karar verir |
 | `components/` | Henüz boş (`.gitkeep`) — ekranlar arası paylaşılan küçük UI parçaları Aşama 9'da eklenecek |
-| `services/` | Henüz boş (`.gitkeep`) — backend'e HTTP isteği atan fonksiyonlar, token saklama Aşama 8'de eklenecek |
+| `.env` / `.env.example` | `EXPO_PUBLIC_API_URL` — backend adresi, koda gömülü değil. `.env` gitignore'da |
 
 > Not: `node_modules/` ve `.expo/` gitignore'da; proje klonlandığında
-> `cd mobile && npm install` ile bağımlılıklar yeniden kurulur.
+> `cd mobile && npm install` ile bağımlılıklar yeniden kurulur. Testler
+> `cd mobile && npm test` ile çalışır.
 
 ## Katman kuralı (neden bu ayrım var)
 
@@ -189,5 +196,5 @@ API sözleşmesi (şema) bilinçli olarak güncellenmeden dışarıya sızmaz.
 
 ## Aşama ilerledikçe burada değişecekler (öngörü, henüz yok)
 
-- Aşama 8: `services/` içine API çağrı fonksiyonları, token saklama (SecureStore).
-- Aşama 9: `components/` içine paylaşılan UI parçaları, ekranlara state yönetimi.
+- Aşama 9: `services/todo.js` (todo CRUD çağrıları), `components/` içine
+  paylaşılan UI parçaları, `TodoListScreen`'e gerçek liste + state yönetimi.
