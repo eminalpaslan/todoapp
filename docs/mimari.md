@@ -4,7 +4,7 @@
 > özetiyken, bu dosya projenin **güncel** mimarisini anlatır. Mimari
 > değiştikçe (yeni klasör, yeni katman, yeni model) bu dosya güncellenir.
 >
-> Son güncelleme: Aşama 8 (Mobil API bağlantısı) sonrası.
+> Son güncelleme: Aşama 9a (Backend — hedef periyotları ve alışkanlıklar) sonrası.
 
 ## Büyük resim
 
@@ -106,7 +106,8 @@ Python sınıfı = veritabanı tablosu. `core/database.py`'deki `Base`'den türe
 | Dosya | İçerik |
 |---|---|
 | `user.py` | `User` tablosu: `id`, `email` (unique), `hashed_password`, `is_verified`, `token_version` (logout/şifre değişiminde artar), `created_at` |
-| `todo.py` | `Todo` tablosu: `id`, `title`, `description` (opsiyonel), `is_done`, `owner_id` (`users.id`'ye foreign key, index'li), `created_at` |
+| `todo.py` | `Todo` tablosu ("hedef"): `id`, `title`, `description` (opsiyonel), `is_done`, `period` (`daily`/`weekly`/`monthly`/`yearly`, varsayılan `daily`), `owner_id` (`users.id`'ye foreign key, index'li), `created_at` |
+| `habit.py` | `Habit` tablosu: `id`, `name`, `period` (`daily`/`weekly`/`monthly`), `owner_id`, `created_at`. `HabitCheckIn` tablosu: `id`, `habit_id` (foreign key), `period_key` (örn. `"2026-10-01"`, `"2026-W40"`, `"2026-10"` — hangi periyot için işaretlendiği), `created_at`. `(habit_id, period_key)` üzerinde benzersizlik kısıtı var — aynı periyot iki kez işaretlenemez |
 
 > Yeni bir tablo eklerken: burada yeni bir dosya/sınıf açılır, ardından
 > `alembic revision --autogenerate` ile migration üretilip `alembic upgrade
@@ -120,7 +121,8 @@ Modellerle karıştırılmamalı: model = veritabanı satırı, şema = API söz
 | Dosya | İçerik |
 |---|---|
 | `user.py` | `UserCreate`, `UserLogin`, `UserResponse` (şifre yok, `is_verified` var), `Token`, `UserUpdate` (profil güncelleme — şifre değişimi mevcut şifre ister), `ForgotPasswordRequest`, `ResetPasswordRequest`, `VerifyEmailRequest`, `MessageResponse` (generic `{"message": "..."}` cevabı) |
-| `todo.py` | `TodoCreate`, `TodoUpdate` (tüm alanlar opsiyonel — kısmi güncelleme için), `TodoResponse` (`owner_id` yok — cevap zaten hep giriş yapmış kullanıcının verisi) |
+| `todo.py` | `Period` (`Literal["daily","weekly","monthly","yearly"]`), `TodoCreate`, `TodoUpdate` (tüm alanlar opsiyonel — kısmi güncelleme için), `TodoResponse` (`owner_id` yok — cevap zaten hep giriş yapmış kullanıcının verisi) |
+| `habit.py` | `HabitPeriod` (`Literal["daily","weekly","monthly"]`), `HabitCreate`, `HabitResponse`, `HabitCheckInCreate` (`period_key`), `HabitCheckInResponse` |
 
 #### `app/routers/` — endpoint tanımları
 
@@ -131,7 +133,8 @@ Her router, ilgili bir konudaki endpoint'leri gruplar; `main.py`'de
 |---|---|
 | `health.py` | `GET /health` — sunucu VE veritabanı bağlantısı ayakta mı (`SELECT 1` çalıştırır, DB erişilemezse 503) |
 | `auth.py` | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `PATCH /auth/me`, `POST /auth/logout`, `POST /auth/verify-email`, `POST /auth/resend-verification`, `POST /auth/forgot-password`, `POST /auth/reset-password` |
-| `todo.py` | `POST /todos`, `GET /todos`, `GET /todos/{id}`, `PATCH /todos/{id}`, `DELETE /todos/{id}` — hepsi `get_current_user` ile korunuyor, sorgular her zaman `owner_id == current_user.id` filtresiyle çalışıyor |
+| `todo.py` | `POST /todos`, `GET /todos` (opsiyonel `?period=` filtresi), `GET /todos/{id}`, `PATCH /todos/{id}`, `DELETE /todos/{id}` — hepsi `get_current_user` ile korunuyor, sorgular her zaman `owner_id == current_user.id` filtresiyle çalışıyor |
+| `habit.py` | `POST /habits`, `GET /habits`, `DELETE /habits/{id}`, `GET /habits/{id}/checkins`, `POST /habits/{id}/checkins` (aynı `period_key` ile tekrar çağrılırsa var olanı döner — idempotent), `DELETE /habits/{id}/checkins/{period_key}` — sahiplik `todo.py`'deki aynı desenle kontrol ediliyor |
 
 ### `backend/alembic/` — veritabanı migration sistemi
 
@@ -150,7 +153,8 @@ Bkz. `docs/03_veritabani.md` için detaylı anlatım. Kısaca:
 |---|---|
 | `test_health.py` | `/health` 200 dönüyor mu |
 | `test_auth.py` | register/login/`/me`, rate limit, SQL injection, email doğrulama (geçerli/geçersiz token, purpose token'ın access olarak kullanılamaması), logout (eski token'ın geçersizleşmesi), profil güncelleme (yanlış mevcut şifre, şifre değişince eski token'ın düşmesi, email değişince `is_verified`'ın sıfırlanması), şifremi unuttum (var/yok email için aynı cevap), şifre sıfırlama |
-| `test_todo.py` | create/list, kısmi güncelleme, silme, **kullanıcı izolasyonu** (başkasının todo'suna erişememe → 404), auth zorunluluğu, boş başlık reddi, SQL injection payload'ının düz metin olarak saklanması |
+| `test_todo.py` | create/list, kısmi güncelleme, silme, **kullanıcı izolasyonu** (başkasının todo'suna erişememe → 404), auth zorunluluğu, boş başlık reddi, SQL injection payload'ının düz metin olarak saklanması, periyot (varsayılan, özel, geçersiz değer reddi, `?period=` ile filtreleme) |
+| `test_habit.py` | create/list/silme, varsayılan periyot, kullanıcı izolasyonu (habit ve check-in seviyesinde), auth zorunluluğu, check-in oluşturma/listeleme, aynı periyodu iki kez işaretlemenin idempotent olması, check-in silme ve var olmayanı silmenin 404 dönmesi |
 | `conftest.py` | `reset_rate_limiter` (autouse) — her testten önce rate limit sayaçlarını sıfırlar, testler `TestClient`'ın paylaştığı sahte IP yüzünden birbirini etkilemesin diye |
 
 > Not: Testler ayrı bir test veritabanı değil, gerçek geliştirme

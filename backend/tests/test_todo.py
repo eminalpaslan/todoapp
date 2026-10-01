@@ -75,6 +75,46 @@ def test_empty_title_is_rejected():
     assert response.status_code == 422
 
 
+def test_todo_period_defaults_to_daily():
+    headers = _auth_headers()
+
+    todo = client.post("/todos", json={"title": "Varsayılan periyot"}, headers=headers).json()
+
+    assert todo["period"] == "daily"
+
+
+def test_todo_can_be_created_with_custom_period():
+    headers = _auth_headers()
+
+    todo = client.post(
+        "/todos", json={"title": "Haftalık hedef", "period": "weekly"}, headers=headers
+    ).json()
+
+    assert todo["period"] == "weekly"
+
+
+def test_invalid_period_is_rejected():
+    headers = _auth_headers()
+
+    response = client.post(
+        "/todos", json={"title": "Geçersiz periyot", "period": "daily-ish"}, headers=headers
+    )
+
+    assert response.status_code == 422
+
+
+def test_list_todos_filtered_by_period():
+    headers = _auth_headers()
+    client.post("/todos", json={"title": "Günlük", "period": "daily"}, headers=headers)
+    client.post("/todos", json={"title": "Aylık", "period": "monthly"}, headers=headers)
+
+    response = client.get("/todos", params={"period": "monthly"}, headers=headers)
+
+    assert response.status_code == 200
+    titles = [t["title"] for t in response.json()]
+    assert titles == ["Aylık"]
+
+
 def test_title_with_sql_injection_payload_is_stored_as_plain_text():
     headers = _auth_headers()
     payload = "Robert'); DROP TABLE todos;--"

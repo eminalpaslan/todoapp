@@ -77,4 +77,5 @@ Her büyük adımdan sonra `docs/` klasörüne o adımı özetleyen bir `.md` do
 
 ## Şu anki aşama
 
-Aşama 1: Proje temeli — klasör yapısı ve git kurulumu.
+Aşama 9: Hedefler, alışkanlıklar ve sekme yapısı (bkz.
+`docs/09_tasarim_hedefler_aliskanliklar.md` ve `docs/00_yol_haritasi.md`).

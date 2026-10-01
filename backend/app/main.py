@@ -6,7 +6,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.core.limiter import limiter
-from app.routers import auth, health, todo
+from app.routers import auth, habit, health, todo
 
 app = FastAPI(title=settings.app_name)
 
@@ -25,3 +25,4 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(todo.router)
+app.include_router(habit.router)

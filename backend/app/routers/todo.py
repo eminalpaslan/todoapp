@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.todo import Todo
 from app.models.user import User
-from app.schemas.todo import TodoCreate, TodoResponse, TodoUpdate
+from app.schemas.todo import Period, TodoCreate, TodoResponse, TodoUpdate
 
 router = APIRouter(prefix="/todos", tags=["todos"])
 
@@ -30,6 +30,7 @@ async def create_todo(
     todo = Todo(
         title=todo_in.title,
         description=todo_in.description,
+        period=todo_in.period,
         owner_id=current_user.id,
     )
     db.add(todo)
@@ -40,12 +41,14 @@ async def create_todo(
 
 @router.get("", response_model=list[TodoResponse])
 async def list_todos(
+    period: Period | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Todo).where(Todo.owner_id == current_user.id).order_by(Todo.created_at.desc())
-    )
+    query = select(Todo).where(Todo.owner_id == current_user.id)
+    if period is not None:
+        query = query.where(Todo.period == period)
+    result = await db.execute(query.order_by(Todo.created_at.desc()))
     return result.scalars().all()
 
 

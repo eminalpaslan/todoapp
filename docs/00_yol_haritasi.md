@@ -53,9 +53,14 @@ Stack: React Native (Expo) + FastAPI + PostgreSQL
 - Token saklama (SecureStore)
 - Login/Register ekranları
 
-### 9. To-Do ekranları
-- Liste ekranı
-- Ekleme/düzenleme/silme UI
+### 9. Hedefler, alışkanlıklar ve sekme yapısı (genişletilmiş kapsam)
+- Kapsam, basit bir to-do listesinden hedef+alışkanlık takibi yapan bir
+  uygulamaya genişledi — detaylı tasarım kararları için bkz.
+  `docs/09_tasarim_hedefler_aliskanliklar.md`.
+- Backend: Todo'ya `period` alanı (günlük/haftalık/aylık/yıllık),
+  yeni `Habit` + `HabitCheckIn` modelleri/endpoint'leri.
+- Mobil: alt sekme navigasyonu (Ana Sayfa, Hedefler, Alışkanlıklar,
+  Yapay Zeka-placeholder) + Profil butonu.
 - State yönetimi (Context API veya Zustand)
 
 ### 10. UX iyileştirme
@@ -83,4 +88,5 @@ Her aşamada:
 3. O aşamanın özeti bu docs klasörüne dosya olarak eklenir
 
 ## Sıradaki adım
-Aşama 8: Mobil — API bağlantısı (axios/fetch servis katmanı, token saklama, Login/Register ekranlarının gerçek mantığı).
+Aşama 9 (backend kısmı): Todo'ya `period` alanı + `Habit`/`HabitCheckIn`
+modelleri ve endpoint'leri. Detay: `docs/09_tasarim_hedefler_aliskanliklar.md`.
