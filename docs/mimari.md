@@ -4,7 +4,7 @@
 > özetiyken, bu dosya projenin **güncel** mimarisini anlatır. Mimari
 > değiştikçe (yeni klasör, yeni katman, yeni model) bu dosya güncellenir.
 >
-> Son güncelleme: Aşama 6.5 (Hesap yönetimi) sonrası.
+> Son güncelleme: Aşama 7 (Mobil uygulama iskeleti) sonrası.
 
 ## Büyük resim
 
@@ -14,8 +14,9 @@ mobile (React Native / Expo)  ⇄  HTTP/JSON  ⇄  backend (FastAPI)  ⇄  Postg
                                                   Mailpit (Docker) — doğrulama/sıfırlama mailleri
 ```
 
-- **mobile/**: Kullanıcının gördüğü uygulama. Şu an sadece klasör iskeleti var,
-  içi Aşama 7'den itibaren doldurulacak.
+- **mobile/**: Kullanıcının gördüğü uygulama. Proje iskeleti ve navigasyon
+  kuruldu, ekranların gerçek mantığı (API çağrısı, state) Aşama 8-9'da
+  doldurulacak.
 - **backend/**: Tüm iş mantığı, veri doğrulama, kimlik doğrulama ve
   veritabanı erişimi burada. Mobil uygulama sadece bu API'ye HTTP isteği atar.
 - **docs/**: Kod değil ama projenin "neden böyle" tarihçesi.
@@ -155,14 +156,22 @@ Bkz. `docs/03_veritabani.md` için detaylı anlatım. Kısaca:
 > Not: Testler ayrı bir test veritabanı değil, gerçek geliştirme
 > veritabanına karşı çalışıyor (bkz. `docs/04_auth.md` "Bilinen sınırlama").
 
-### `mobile/` (henüz boş iskelet)
+### `mobile/` — Expo (React Native) projesi
 
-| Klasör | İleride ne içerecek |
+| Yol | Ne işe yarar |
 |---|---|
-| `screens/` | Tam sayfa ekranlar (Login, Register, TodoList, ...) |
-| `components/` | Ekranlar arası paylaşılan küçük UI parçaları (buton, kart, input) |
-| `services/` | Backend'e HTTP isteği atan fonksiyonlar (axios/fetch), token saklama |
-| `navigation/` | Ekranlar arası geçiş yapısı (React Navigation) |
+| `App.js` | Giriş noktası — sadece `AppNavigator`'ı render eder |
+| `app.json` | Expo proje ayarları (isim, slug, icon, platform ayarları) |
+| `package.json` | Bağımlılıklar (`expo`, `react-native`, `@react-navigation/*`) |
+| `index.js` | Expo'nun native tarafa uygulamayı kaydettiği dosya (elle değiştirilmez) |
+| `assets/` | İkon/splash görselleri |
+| `navigation/AppNavigator.js` | `NavigationContainer` + `Stack.Navigator` — `Login`, `Register`, `TodoList` ekranları arasındaki geçiş |
+| `screens/` | Tam sayfa ekranlar: `LoginScreen.js`, `RegisterScreen.js`, `TodoListScreen.js` (şimdilik placeholder, gerçek mantık Aşama 8-9'da) |
+| `components/` | Henüz boş (`.gitkeep`) — ekranlar arası paylaşılan küçük UI parçaları Aşama 9'da eklenecek |
+| `services/` | Henüz boş (`.gitkeep`) — backend'e HTTP isteği atan fonksiyonlar, token saklama Aşama 8'de eklenecek |
+
+> Not: `node_modules/` ve `.expo/` gitignore'da; proje klonlandığında
+> `cd mobile && npm install` ile bağımlılıklar yeniden kurulur.
 
 ## Katman kuralı (neden bu ayrım var)
 
@@ -180,4 +189,5 @@ API sözleşmesi (şema) bilinçli olarak güncellenmeden dışarıya sızmaz.
 
 ## Aşama ilerledikçe burada değişecekler (öngörü, henüz yok)
 
-- Aşama 7-9: `mobile/` klasörleri gerçek dosyalarla dolacak.
+- Aşama 8: `services/` içine API çağrı fonksiyonları, token saklama (SecureStore).
+- Aşama 9: `components/` içine paylaşılan UI parçaları, ekranlara state yönetimi.

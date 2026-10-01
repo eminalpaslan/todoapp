@@ -83,4 +83,4 @@ Her aşamada:
 3. O aşamanın özeti bu docs klasörüne dosya olarak eklenir
 
 ## Sıradaki adım
-Aşama 1: Proje temeli — klasör yapısı ve git kurulumu.
+Aşama 8: Mobil — API bağlantısı (axios/fetch servis katmanı, token saklama, Login/Register ekranlarının gerçek mantığı).
