@@ -4,7 +4,7 @@
 > özetiyken, bu dosya projenin **güncel** mimarisini anlatır. Mimari
 > değiştikçe (yeni klasör, yeni katman, yeni model) bu dosya güncellenir.
 >
-> Son güncelleme: Aşama 9a (Backend — hedef periyotları ve alışkanlıklar) sonrası.
+> Son güncelleme: Aşama 9b (Mobil — sekme navigasyonu, Hedefler, Alışkanlıklar) sonrası.
 
 ## Büyük resim
 
@@ -15,8 +15,10 @@ mobile (React Native / Expo)  ⇄  HTTP/JSON  ⇄  backend (FastAPI)  ⇄  Postg
 ```
 
 - **mobile/**: Kullanıcının gördüğü uygulama (Expo/React Native). Giriş/
-  kayıt gerçek backend'e bağlı, token cihazda şifreli saklanıyor. Todo
-  listesinin kendisi (CRUD ekranları) Aşama 9'da eklenecek.
+  kayıt gerçek backend'e bağlı, token cihazda şifreli saklanıyor. Giriş
+  sonrası 4 sekmeli ana yapı: Ana Sayfa (ilerleme özeti), Hedefler
+  (periyot bazlı todo/goal listesi), Alışkanlıklar, Yapay Zeka
+  (placeholder). Profil/ayarlar her sekmenin header'ındaki ikonla erişiliyor.
 - **backend/**: Tüm iş mantığı, veri doğrulama, kimlik doğrulama ve
   veritabanı erişimi burada. Mobil uygulama sadece bu API'ye HTTP isteği atar.
 - **docs/**: Kod değil ama projenin "neden böyle" tarihçesi.
@@ -63,7 +65,7 @@ verisini zaten hiç sonuç olarak döndürmüyor (kod içinde ayrıca bir
 | `.gitignore` | Kök seviyede hangi dosyaların git'e girmeyeceği (`.env` dosyaları) |
 | `docs/` | Her aşamanın özeti + bu mimari dosyası |
 | `backend/` | FastAPI + PostgreSQL API'si |
-| `mobile/` | Expo (React Native) mobil uygulaması (henüz boş iskelet) |
+| `mobile/` | Expo (React Native) mobil uygulaması — giriş/kayıt + 4 sekmeli ana yapı çalışıyor |
 
 ### `backend/` — üst seviye
 
@@ -84,7 +86,7 @@ belirlediği katman ayrımını izliyor:
 
 | Yol | Ne işe yarar |
 |---|---|
-| `main.py` | Uygulamanın giriş noktası. `FastAPI()` nesnesini oluşturur, rate limiter'ı ve CORS'u (spesifik origin/method/header — `*` yok) middleware olarak ekler, tüm router'ları (`health`, `auth`, `todo`) buraya bağlar |
+| `main.py` | Uygulamanın giriş noktası. `FastAPI()` nesnesini oluşturur, rate limiter'ı ve CORS'u (spesifik origin/method/header — `*` yok) middleware olarak ekler, tüm router'ları (`health`, `auth`, `todo`, `habit`) buraya bağlar |
 
 #### `app/core/` — ortak altyapı
 
@@ -169,16 +171,24 @@ Bkz. `docs/03_veritabani.md` için detaylı anlatım. Kısaca:
 | `package.json` | Bağımlılıklar (`expo`, `react-native`, `@react-navigation/*`) |
 | `index.js` | Expo'nun native tarafa uygulamayı kaydettiği dosya (elle değiştirilmez) |
 | `assets/` | İkon/splash görselleri |
-| `navigation/AppNavigator.js` | `NavigationContainer` + `Stack.Navigator` — `isLoggedIn`'e göre ya `Login`/`Register`, ya da `TodoList` ekranı gösterilir (iki ayrı stack, biri diğerine "geri" ile dönülemez) |
+| `navigation/AppNavigator.js` | `NavigationContainer` + `Stack.Navigator` — `isLoggedIn`'e göre ya `Login`/`Register`, ya da `MainTabs` + `Profile` gösterilir (iki ayrı stack, biri diğerine "geri" ile dönülemez) |
+| `navigation/MainTabs.js` | `createBottomTabNavigator` — 4 sekme: Ana Sayfa, Hedefler, Alışkanlıklar, Yapay Zeka. `headerShown: false` — her ekran kendi başlığını `ScreenHeader` ile çiziyor |
+| `components/ScreenHeader.js` | Başlık + sağ üstte profil ikonu (basınca `Profile` ekranına gider) — tab ekranlarının ortak başlığı |
 | `screens/LoginScreen.js`, `RegisterScreen.js` | Gerçek form (email/şifre), backend hatalarını kullanıcıya gösterir |
-| `screens/TodoListScreen.js` | Korumalı `/auth/me` ile kullanıcı bilgisini gösterir, çıkış butonu var. Todo CRUD'u Aşama 9'da eklenecek |
-| `screens/__tests__/` | `LoginScreen.test.js` — boş form/başarılı giriş/hatalı giriş senaryoları (`jest-expo` + `@testing-library/react-native`) |
+| `screens/HomeScreen.js` | Bugünün ilerleme yüzdesi (günlük hedef+alışkanlık tamamlanma oranı), bugünün/haftanın hedef özeti. `useFocusEffect` ile sekmeye her dönüşte yeniden veri çeker (diğer sekmelerdeki değişiklikler yansısın diye) |
+| `screens/GoalsScreen.js` | "Hedefler" — üstte periyot chip'leri (günlük/haftalık/aylık/yıllık), arama, ekleme formu, liste (tamamlama/silme) |
+| `screens/HabitsScreen.js` | "Alışkanlıklar" — arama, ekleme formu (isim+periyot), her satırda "bu periyot için yaptım" tek dokunuşluk kutucuk |
+| `screens/AIScreen.js` | Placeholder ("Yakında") |
+| `screens/ProfileScreen.js` | Korumalı `/auth/me` ile kullanıcı bilgisini gösterir, çıkış butonu var |
+| `screens/__tests__/` | `LoginScreen.test.js`, `GoalsScreen.test.js` (`jest-expo` + `@testing-library/react-native`) |
 | `services/storage.js` | Token'ı `expo-secure-store` ile cihazın şifreli deposunda saklar (`getToken`/`setToken`/`deleteToken`) |
 | `services/api.js` | Paylaşılan `axios` instance'ı — `baseURL` `.env`'den (`EXPO_PUBLIC_API_URL`), request interceptor token'ı otomatik `Authorization` header'ına ekler; `getErrorMessage()` backend hata formatını kullanıcıya gösterilecek metne çevirir |
 | `services/auth.js` | `register`, `login`, `getCurrentUser`, `logout` — backend `/auth/*`'a ince bir katman |
+| `services/todo.js` | `listTodos(period)`, `createTodo`, `updateTodo`, `deleteTodo` — backend `/todos`'a ince bir katman |
+| `services/habit.js` | `listHabits`, `createHabit`, `deleteHabit`, `listCheckIns`, `createCheckIn`, `deleteCheckIn` — backend `/habits`'e ince bir katman |
+| `services/periods.js` | `currentPeriodKey(period)` — backend'in beklediği `period_key` formatını (günlük/haftalık ISO hafta/aylık) client'ta hesaplar |
 | `services/AuthContext.js` | React Context — `isLoggedIn`/`isLoading`/`signIn`/`signOut`; `AppNavigator` hangi stack'i göstereceğine bununla karar verir |
-| `components/` | Henüz boş (`.gitkeep`) — ekranlar arası paylaşılan küçük UI parçaları Aşama 9'da eklenecek |
-| `.env` / `.env.example` | `EXPO_PUBLIC_API_URL` — backend adresi, koda gömülü değil. `.env` gitignore'da |
+| `.env` / `.env.example` | `EXPO_PUBLIC_API_URL` — backend adresi, koda gömülü değil. `.env` gitignore'da. **Android emülatöründe** `10.0.2.2`, **web'de** `localhost`, **fiziksel cihazda** bilgisayarın LAN IP'si gerekir (bkz. `docs/08b_gelistirme_ortami.md`) |
 
 > Not: `node_modules/` ve `.expo/` gitignore'da; proje klonlandığında
 > `cd mobile && npm install` ile bağımlılıklar yeniden kurulur. Testler
@@ -200,5 +210,7 @@ API sözleşmesi (şema) bilinçli olarak güncellenmeden dışarıya sızmaz.
 
 ## Aşama ilerledikçe burada değişecekler (öngörü, henüz yok)
 
-- Aşama 9: `services/todo.js` (todo CRUD çağrıları), `components/` içine
-  paylaşılan UI parçaları, `TodoListScreen`'e gerçek liste + state yönetimi.
+- Yapay Zeka sekmesinin kapsamı netleşince: yeni bir backend endpoint'i,
+  bir API anahtarı (`.env`), gerçek bir ekran.
+- Alışkanlıklar için geçmiş/takvim görünümü (şu an sadece "bu periyot
+  için yaptım" var, `HabitCheckIn` kayıtları zaten sorgulanabilir).

@@ -4,10 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { useAuth } from '../services/AuthContext';
 import { getCurrentUser, logout } from '../services/auth';
 
-// Todo listesinin kendisi (CRUD, API'den cekme) Asama 9'da eklenecek.
-// Burada sadece token'in gercekten gectigini (korumali /auth/me) ve
-// cikis akisini dogrulamak icin kullanici bilgisi gosteriliyor.
-export default function TodoListScreen() {
+export default function ProfileScreen() {
   const { signOut } = useAuth();
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,12 +25,10 @@ export default function TodoListScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Todo Listem</Text>
-
       {isLoading ? (
         <ActivityIndicator />
       ) : (
-        <Text style={styles.subtitle}>
+        <Text style={styles.email}>
           {user?.email}
           {user && !user.is_verified ? ' (e-posta doğrulanmadı)' : ''}
         </Text>
@@ -53,14 +48,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  subtitle: {
+  email: {
     color: '#555',
-    marginTop: 8,
     marginBottom: 24,
+    fontSize: 16,
   },
   button: {
     backgroundColor: '#dc2626',

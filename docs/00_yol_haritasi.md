@@ -88,5 +88,8 @@ Her aşamada:
 3. O aşamanın özeti bu docs klasörüne dosya olarak eklenir
 
 ## Sıradaki adım
-Aşama 9 (backend kısmı): Todo'ya `period` alanı + `Habit`/`HabitCheckIn`
-modelleri ve endpoint'leri. Detay: `docs/09_tasarim_hedefler_aliskanliklar.md`.
+Aşama 9 tamamlandı (backend: `docs/09a_backend_hedef_aliskanlik.md`,
+mobil: `docs/09b_mobil_sekmeler.md`). Sırada Aşama 10: UX iyileştirme
+(loading/error state'leri, boş liste durumu, basit animasyonlar) — ya da
+kullanıcı başka bir önceliği (Yapay Zeka kapsamı, alışkanlık geçmişi gibi)
+işaret ederse önce o ele alınır.
